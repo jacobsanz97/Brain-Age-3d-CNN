@@ -1,0 +1,43 @@
+Bootstrap: docker
+From: python:3.9-slim-buster
+
+%setup
+    # Create the training_logs directory on the host if it doesn't exist 
+    # to ensure the copy command works correctly.
+    mkdir -p ${SINGULARITY_ROOTFS}/app/training_logs
+
+%files
+    requirements.txt /app/requirements.txt
+    cnn.py /app/cnn.py
+    predict.py /app/predict.py
+    training_logs/* /app/training_logs/
+
+%environment
+    export LC_ALL=C
+    export PATH=/usr/local/bin:$PATH
+
+%post
+    export DEBIAN_FRONTEND=noninteractive
+    
+    # System dependencies
+    apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        git \
+        libopenblas-dev \
+        libglib2.0-0
+    
+    # Python dependencies
+    cd /app
+    pip install --no-cache-dir -r requirements.txt
+    
+    # Cleanup
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+
+%runscript
+    cd /app
+    exec python predict.py "$@"
+
+%help
+    This container runs a CNN prediction script for NIfTI files.
+    Usage: singularity run <container_name>.sif <input_file.nii>
